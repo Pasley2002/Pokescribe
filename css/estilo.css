@@ -1,0 +1,118 @@
+:root {
+    --primary: #ff9f43;
+    --primary-hover: #ee5253;
+    --bg: #121212;
+    --card-bg: #1e1e1e;
+    --text: #f5f5f5;
+    --accent: #00d2d3;
+    --success: #00b894;
+    --danger: #eb4d4b;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.container { width: 100%; max-width: 900px; }
+header { text-align: center; margin-bottom: 30px; }
+h1 { color: var(--primary); font-size: 2.5rem; margin-bottom: 5px; }
+
+/* Diseño de los botones Generar/Limpiar */
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+#convertBtn {
+    flex: 3;
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: 0.2s;
+}
+
+#clearBtn {
+    flex: 1;
+    background: #333;
+    color: #ccc;
+    border: none;
+    padding: 16px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+#convertBtn:hover { background: var(--primary-hover); transform: translateY(-2px); }
+#clearBtn:hover { background: var(--danger); color: white; }
+
+textarea {
+    width: 100%;
+    height: 200px;
+    background: #252525;
+    color: white;
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 15px;
+    font-family: 'Consolas', monospace;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.poke-card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 25px;
+    border-left: 6px solid var(--primary);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+.command-wrap {
+    background: #000;
+    padding: 14px;
+    border-radius: 10px;
+    margin-top: 12px;
+    position: relative;
+    border: 1px solid #333;
+}
+
+.label { font-size: 0.7rem; color: var(--accent); font-weight: 800; display: block; margin-bottom: 6px; }
+.cmd-text { font-family: 'Consolas', monospace; font-size: 0.9rem; color: #e0e0e0; word-break: break-all; padding-right: 50px; }
+
+.copy-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #2d2d2d;
+    color: #fff;
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.copy-btn.copied { background: var(--success); }
+
+/* Estilos para el validador de EVs */
+.ev-counter { font-size: 0.75rem; margin-top: 10px; font-weight: bold; display: inline-block; padding: 4px 8px; border-radius: 4px; background: #333; }
+.ev-ok { color: var(--success); }
+.ev-error { color: white; background: var(--danger); }

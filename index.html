@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PokeScribe | Cobblemon Command Tool</title>
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="stylesheet" href="/css/estilo.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>PokeScribe</h1>
+        <p>Convierte sets de Showdown a comandos de Cobblemon ✨</p>
+      </header>
+
+      <main>
+        <textarea
+          id="input"
+          placeholder="Pega aquí tu equipo de Showdown..."
+        ></textarea>
+
+        <div class="button-group">
+          <button id="convertBtn" onclick="convertTeam()">
+            GENERAR EQUIPO
+          </button>
+          <button id="clearBtn" onclick="clearAll()">LIMPIAR</button>
+        </div>
+
+        <div id="output" class="result-box"></div>
+      </main>
+    </div>
+
+    <script src="/js/script.js"></script>
+  </body>
+</html>
