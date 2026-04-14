@@ -1,6 +1,7 @@
 /**
- * POKESCRIBE v1.9 - Nickname Update
- * Soporte para motes personalizados: Nickname (Species) @ Item
+ * POKESCRIBE v2.0 - Final Prefix & Formes Update
+ * Versión estable con corrección de prefijos (Orbes de estado en Cobblemon)
+ * y soporte total para formas legendarias y motes.
  */
 
 function convertTeam() {
@@ -40,8 +41,7 @@ function parsePokemon(block) {
         species: '', item: '', ability: '', tera: '', nature: '',
         evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0}, 
         ivs: {hp:31, atk:31, def:31, spa:31, spd:31, spe:31}, 
-        moves: [], gender: '', formParam: '', isShiny: false,
-        nickname: '' // <-- Nueva propiedad para el mote
+        moves: [], gender: '', formParam: '', isShiny: false, nickname: ''
     };
 
     const cleanID = (str) => str.toLowerCase().trim().replace(/ /g, '').replace(/[^a-z0-9]/g, '');
@@ -55,17 +55,15 @@ function parsePokemon(block) {
             data.item = parts[1] ? parts[1].trim() : '';
             let namePart = parts[0].trim();
 
-            // 1. Manejo de géneros
             if (namePart.includes('(M)')) { data.gender = 'male'; namePart = namePart.replace('(M)', '').trim(); }
             else if (namePart.includes('(F)')) { data.gender = 'female'; namePart = namePart.replace('(F)', '').trim(); }
             
-            // 2. Detección de Mote: Formato "Mote (Especie)"
             const nicknameMatch = namePart.match(/(.+?)\s*\(([^)]+)\)/);
             if (nicknameMatch) {
-                data.nickname = nicknameMatch[1].trim(); // Lo que está fuera de los paréntesis
-                data.species = nicknameMatch[2].trim();  // Lo que está dentro de los paréntesis
+                data.nickname = nicknameMatch[1].trim();
+                data.species = nicknameMatch[2].trim();
             } else {
-                data.species = namePart; // No hay mote, el nombre es la especie
+                data.species = namePart;
                 data.nickname = '';
             }
 
@@ -193,11 +191,19 @@ function renderPokemon(data, slot, container) {
     const toJoin = (str) => str.toLowerCase().trim().replace(/[^a-z0-9]/g, ''); 
     const toSnake = (str) => str.toLowerCase().trim().replace(/[ -]/g, '_').replace(/[^a-z0-9_]/g, '');
 
+    // --- LÓGICA DE PREFIJOS ---
     const itemName = data.item.toLowerCase();
     let prefix = 'cobblemon:';
-    if (itemName !== 'eviolite' && itemName !== '') {
-        const megaKeywords = ['ite', 'crystal', 'orb', 'meteorite'];
-        if (megaKeywords.some(k => itemName.includes(k))) prefix = 'mega_showdown:';
+    
+    // Keywords de Mega Showdown
+    const megaKeywords = ['ite', 'crystal', 'meteorite', ' z', '_z'];
+    const isMegaShowdownCandidate = megaKeywords.some(k => itemName.includes(k)) || (itemName.includes('orb') && !['life orb', 'toxic orb', 'flame orb', 'adrenaline orb'].includes(itemName));
+    
+    // Lista de excepciones de Cobblemon (Items que NO son de Mega Showdown)
+    const cobblemonExceptions = ['eviolite', 'life orb', 'toxic orb', 'flame orb', 'adrenaline orb'];
+    
+    if (isMegaShowdownCandidate && !cobblemonExceptions.includes(itemName) && itemName !== '') {
+        prefix = 'mega_showdown:';
     }
     
     const finalItem = data.item ? ` held_item=${prefix}${toSnake(data.item)}` : '';
@@ -219,7 +225,6 @@ function renderPokemon(data, slot, container) {
     const evClass = totalEVs > 510 ? 'ev-error' : 'ev-ok';
     const evText = totalEVs > 510 ? `⚠️ ERROR: ${totalEVs}/510 EVs` : `EVs: ${totalEVs}/510`;
 
-    // AGREGAMOS EL PARÁMETRO NICKNAME
     const nicknameParam = data.nickname ? ` nickname="${data.nickname}"` : '';
 
     const giveCmd = `/pokegive ${finalSpecies} lvl=100${finalItem}${data.gender ? ' gender='+data.gender : ''} ability=${finalAbility}${data.tera ? ' tera_type='+toJoin(data.tera) : ''}${ivString}${evString} nature=${toJoin(data.nature)}${data.formParam}${data.isShiny ? ' shiny=true' : ''}${nicknameParam}`;
