@@ -1,32 +1,57 @@
 /**
- * POKESCRIBE v1.0 - Lógica de Conversión Showdown a Cobblemon
+ * POKESCRIBE v1.5 - Final Edition
+ * Conversor de sets Showdown a comandos de Cobblemon.
+ * Incluye soporte para formas regionales (Oficiales y Customs), validación de EVs y formateo de IDs.
  */
 
-// --- FUNCIÓN PRINCIPAL: Inicia la conversión del equipo ---
+// --- LÓGICA DE INTERFAZ ---
+
+/**
+ * Procesa el texto del textarea y genera las tarjetas de comandos.
+ */
 function convertTeam() {
     const rawInput = document.getElementById('input').value.trim();
-    if (!rawInput) return;
-
-    // Dividimos el texto en bloques (cada Pokémon está separado por una línea vacía)
-    const blocks = rawInput.split(/\n\s*\n/);
     const outputDiv = document.getElementById('output');
+    
+    // Validación de entrada vacía
+    if (!rawInput) {
+        outputDiv.innerHTML = '<div class="poke-card" style="border-left-color:var(--danger); text-align:center;"><p style="color:var(--text); font-weight:bold;">El campo está vacío. Pega un set de Showdown.</p></div>';
+        return;
+    }
+
+    // Dividimos por bloques de Pokémon (líneas en blanco)
+    const blocks = rawInput.split(/\n\s*\n/);
     outputDiv.innerHTML = ''; 
+
+    let foundAny = false;
 
     blocks.forEach((block, index) => {
         const pokeData = parsePokemon(block);
         if (pokeData.species) {
             renderPokemon(pokeData, index + 1, outputDiv);
+            foundAny = true;
         }
     });
+
+    // Mensaje de error si el texto no contiene un formato válido
+    if (!foundAny) {
+        outputDiv.innerHTML = '<div class="poke-card" style="border-left-color:var(--danger); text-align:center;"><p style="color:var(--text); font-weight:bold;">No se detectó ningún Pokémon válido. Revisa el formato.</p></div>';
+    }
 }
 
-// --- FUNCIÓN LIMPIAR: Borra el input y los resultados ---
+/**
+ * Limpia el área de trabajo.
+ */
 function clearAll() {
     document.getElementById('input').value = '';
     document.getElementById('output').innerHTML = '';
 }
 
-// --- ANALIZADOR (PARSER): Extrae la información del texto de Showdown ---
+// --- LÓGICA DE PROCESAMIENTO (PARSER) ---
+
+/**
+ * Analiza un bloque de texto de Showdown y devuelve un objeto con los datos del Pokémon.
+ */
 function parsePokemon(block) {
     const lines = block.split('\n');
     let data = {
@@ -36,34 +61,32 @@ function parsePokemon(block) {
         moves: [], gender: '', formParam: '', isShiny: false
     };
 
-    // cleanID: Quita espacios y puntos para nombres de movimientos
+    // Limpieza estándar para IDs de movimientos (todo junto, sin símbolos)
     const cleanID = (str) => str.toLowerCase().trim().replace(/ /g, '').replace(/[^a-z0-9]/g, '');
 
     lines.forEach((line, i) => {
         line = line.trim();
         if (!line) return;
 
-        // Línea 1: Formato "Nombre (Especie) (Género) @ Objeto"
+        // Línea 1: Formato "Especie @ Objeto"
         if (i === 0) {
             const parts = line.split(' @ ');
             data.item = parts[1] ? parts[1].trim() : '';
             let namePart = parts[0];
 
-            // Detección de Género
+            // Detección de género
             if (namePart.includes('(M)')) { data.gender = 'male'; namePart = namePart.replace('(M)', ''); }
             else if (namePart.includes('(F)')) { data.gender = 'female'; namePart = namePart.replace('(F)', ''); }
-
-            // Detección de Especie
+            
+            // Detección de especie (maneja motes entre paréntesis)
             const match = namePart.match(/\(([^)]+)\)/);
             data.species = match ? match[1].trim() : namePart.trim();
 
-            // CASOS ESPECIALES
-            // 1. Gastrodon
+            // Handlers para formas con parámetros específicos en Cobblemon
             if (data.species.toLowerCase().includes('gastrodon')) {
                 data.formParam += data.species.toLowerCase().includes('east') ? ' sea=east' : ' sea=west';
                 data.species = 'gastrodon';
             }
-            // 2. Tauros Paldea
             if (data.species.toLowerCase().includes('tauros-paldea')) {
                 if (data.species.toLowerCase().includes('aqua')) data.formParam += ' bull_breed=aqua';
                 else if (data.species.toLowerCase().includes('blaze')) data.formParam += ' bull_breed=blaze';
@@ -71,8 +94,8 @@ function parsePokemon(block) {
                 data.species = 'tauros';
             }
 
-            // 3. Formas Regionales Genéricas (Alola, Galar, etc.)
-            const regions = { 'Alola': 'alolan', 'Galar': 'galarian', 'Paldea': 'paldean', 'Hisui': 'hisuian' };
+            // Mapeo de regiones (soporta Kazeran para la comunidad de Orizon)
+            const regions = { 'Alola': 'alolan', 'Galar': 'galarian', 'Paldea': 'paldean', 'Hisui': 'hisuian', 'Kazeran': 'kazeran' };
             for (let r in regions) {
                 if (data.species.includes('-' + r)) {
                     if (!data.formParam.includes(regions[r])) data.formParam += ` ${regions[r]}=true`;
@@ -80,7 +103,7 @@ function parsePokemon(block) {
                 }
             }
         }
-        // Otras líneas de datos
+        // Identificación de atributos por Keywords
         else if (line.startsWith('Shiny:')) data.isShiny = line.toLowerCase().includes('yes');
         else if (line.startsWith('Ability:')) data.ability = line.split(': ')[1];
         else if (line.startsWith('Tera Type:')) data.tera = line.split(': ')[1];
@@ -97,36 +120,53 @@ function parsePokemon(block) {
             });
         }
         else if (line.includes(' Nature')) data.nature = line.split(' ')[0];
-        else if (line.startsWith('-')) data.moves.push(cleanID(line.replace('-', '')));
+        
+        // Detección flexible de movimientos (acepta viñetas o texto directo)
+        else {
+            let moveCandidate = line;
+            if (line.startsWith('-') || line.startsWith('•') || line.startsWith('*')) {
+                moveCandidate = line.substring(1).trim();
+            }
+            // Evita procesar líneas descriptivas como ataques
+            if (!moveCandidate.includes(':') && !moveCandidate.includes('@')) {
+                data.moves.push(cleanID(moveCandidate));
+            }
+        }
     });
-
     return data;
 }
 
-// --- RENDERIZADO: Crea la tarjeta visual y genera los comandos ---
+// --- LÓGICA DE RENDERIZADO Y COMANDOS ---
+
+/**
+ * Crea la tarjeta visual y formatea los comandos finales para Minecraft.
+ */
 function renderPokemon(data, slot, container) {
-    const toSnake = (str) => str.toLowerCase().trim().replace(/ /g, '_').replace(/[^a-z0-9_]/g, '');
-    
-    // Prefijo de Objetos (Eviolite exception)
+    // Formateadores de ID según requisitos de Cobblemon
+    const toJoin = (str) => str.toLowerCase().trim().replace(/[^a-z0-9]/g, ''); // Para habilidades y movimientos
+    const toSnake = (str) => str.toLowerCase().trim().replace(/[ -]/g, '_').replace(/[^a-z0-9_]/g, ''); // Para objetos
+
+    // Gestión de prefijos de objetos (Compatibilidad con Mega Showdown)
     const itemName = data.item.toLowerCase();
     let prefix = 'cobblemon:';
     if (itemName !== 'eviolite' && itemName !== '') {
         const megaKeywords = ['ite', 'crystal', 'orb', 'meteorite'];
         if (megaKeywords.some(k => itemName.includes(k))) prefix = 'mega_showdown:';
     }
+    
     const finalItem = data.item ? ` held_item=${prefix}${toSnake(data.item)}` : '';
+    const finalAbility = toJoin(data.ability);
+    const finalSpecies = toJoin(data.species);
 
-    // IVs: Si no son todos 31, los escribimos uno por uno
+    // Formateo de IVs (Optimizado: si son 31 no se listan individualmente)
     let ivString = '';
     const hasNonPerfect = Object.values(data.ivs).some(v => parseInt(v) !== 31);
     if (hasNonPerfect) {
         const ivMap = { hp: 'hp_iv', atk: 'attack_iv', def: 'defence_iv', spa: 'special_attack_iv', spd: 'special_defence_iv', spe: 'speed_iv' };
         for (let key in data.ivs) { ivString += ` ${ivMap[key]}=${data.ivs[key]}`; }
-    } else {
-        ivString = ' min_perfect_ivs=6';
-    }
+    } else { ivString = ' min_perfect_ivs=6'; }
 
-    // EVs: Cálculo y validación de suma
+    // Formateo de EVs y cálculo de suma total para validación
     const evMap = { hp: 'hp_ev', atk: 'attack_ev', def: 'defence_ev', spa: 'special_attack_ev', spd: 'special_defence_ev', spe: 'speed_ev' };
     let evString = '';
     let totalEVs = 0;
@@ -137,14 +177,15 @@ function renderPokemon(data, slot, container) {
         }
     }
 
+    // Estilo visual según validación de EVs (Límite competitivo 510)
     const evClass = totalEVs > 510 ? 'ev-error' : 'ev-ok';
     const evText = totalEVs > 510 ? `⚠️ ERROR: ${totalEVs}/510 EVs` : `EVs: ${totalEVs}/510`;
 
-    // COMANDOS FINALES
-    const giveCmd = `/pokegive ${toSnake(data.species)} lvl=100${finalItem}${data.gender ? ' gender='+data.gender : ''} ability=${toSnake(data.ability)}${data.tera ? ' tera_type='+toSnake(data.tera) : ''}${ivString}${evString} nature=${toSnake(data.nature)}${data.formParam}${data.isShiny ? ' shiny=true' : ''}`;
+    // Construcción de comandos finales
+    const giveCmd = `/pokegive ${finalSpecies} lvl=100${finalItem}${data.gender ? ' gender='+data.gender : ''} ability=${finalAbility}${data.tera ? ' tera_type='+toJoin(data.tera) : ''}${ivString}${evString} nature=${toJoin(data.nature)}${data.formParam}${data.isShiny ? ' shiny=true' : ''}`;
     const editCmd = `/pokeedit ${slot} moves=${data.moves.join(',')}`;
 
-    // Dibujado de la tarjeta
+    // Inyección de HTML en la tarjeta
     const card = document.createElement('div');
     card.className = 'poke-card';
     card.innerHTML = `
@@ -169,13 +210,15 @@ function renderPokemon(data, slot, container) {
     container.appendChild(card);
 }
 
-// --- FUNCIÓN COPIAR: Envía el texto al portapapeles con efecto visual ---
+/**
+ * Maneja el copiado al portapapeles y el feedback visual del botón.
+ */
 function copyText(id, btn) {
     const text = document.getElementById(id).innerText;
     navigator.clipboard.writeText(text).then(() => {
         btn.classList.add('copied');
-        const oldHtml = btn.innerHTML;
+        const old = btn.innerHTML;
         btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = oldHtml; }, 1500);
+        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = old; }, 1500);
     });
 }
