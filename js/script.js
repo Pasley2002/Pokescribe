@@ -1,6 +1,6 @@
 /**
- * POKESCRIBE v1.6 - Precision Edition
- * Solución para especies con género (-F/-M) y Estilos de Urshifu.
+ * POKESCRIBE v1.7 - Legendary Forms Update
+ * Soporte masivo para formas: Rotom, Deoxys, Genios, Fusiones y más.
  */
 
 function convertTeam() {
@@ -16,7 +16,6 @@ function convertTeam() {
     outputDiv.innerHTML = ''; 
 
     let foundAny = false;
-
     blocks.forEach((block, index) => {
         const pokeData = parsePokemon(block);
         if (pokeData.species) {
@@ -55,7 +54,6 @@ function parsePokemon(block) {
             data.item = parts[1] ? parts[1].trim() : '';
             let namePart = parts[0];
 
-            // 1. Extraer Género primero
             if (namePart.includes('(M)')) { data.gender = 'male'; namePart = namePart.replace('(M)', ''); }
             else if (namePart.includes('(F)')) { data.gender = 'female'; namePart = namePart.replace('(F)', ''); }
             
@@ -64,24 +62,77 @@ function parsePokemon(block) {
 
             let lowSpec = data.species.toLowerCase();
 
-            // 2. CORRECCIÓN: Especies con sufijos de género (Indeedee-F, etc.)
-            const genderedSuffixMons = ['indeedee', 'basculegion', 'oinkologne', 'meowstic'];
-            if (genderedSuffixMons.some(s => lowSpec.startsWith(s))) {
-                // Si la especie es "Indeedee-F", nos quedamos solo con "Indeedee"
-                data.species = data.species.split('-')[0];
-            }
+            // --- LÓGICA DE FORMAS ESPECIALES COBBLEMON ---
 
-            // 3. CORRECCIÓN: Estilos de Urshifu
-            if (lowSpec.includes('urshifu')) {
-                if (lowSpec.includes('rapid-strike')) {
-                    data.formParam += ' wushu_style=rapid_strike';
-                } else {
-                    data.formParam += ' wushu_style=single_strike';
-                }
+            // 1. Rotom (Appliance)
+            if (lowSpec.startsWith('rotom-')) {
+                const appliances = ['fan', 'frost', 'heat', 'mow', 'wash'];
+                appliances.forEach(a => { if (lowSpec.includes(a)) data.formParam += ` appliance=${a}`; });
+                data.species = 'rotom';
+            }
+            // 2. Deoxys (Meteorite Forme)
+            else if (lowSpec.startsWith('deoxys-')) {
+                const dForms = { 'attack': 'attack', 'defense': 'defense', 'speed': 'speed' };
+                for (let f in dForms) { if (lowSpec.includes(f)) data.formParam += ` meteorite_forme=${dForms[f]}`; }
+                data.species = 'deoxys';
+            }
+            // 3. Shaymin (Gracidea Forme)
+            else if (lowSpec === 'shaymin-sky') {
+                data.formParam += ' gracidea_forme=sky';
+                data.species = 'shaymin';
+            } else if (lowSpec === 'shaymin') {
+                data.formParam += ' gracidea_forme=land';
+            }
+            // 4. Genios: Landorus, Tornadus, Thundurus, Enamorus (Mirror Forme)
+            const genies = ['landorus', 'tornadus', 'thundurus', 'enamorus'];
+            if (genies.some(g => lowSpec.startsWith(g))) {
+                data.formParam += lowSpec.includes('-therian') ? ' mirror_forme=therian' : ' mirror_forme=incarnate';
+                data.species = lowSpec.split('-')[0];
+            }
+            // 5. Kyurem (Absofusion)
+            else if (lowSpec.includes('kyurem-')) {
+                if (lowSpec.includes('black')) data.formParam += ' absofusion=black';
+                if (lowSpec.includes('white')) data.formParam += ' absofusion=white';
+                data.species = 'kyurem';
+            }
+            // 6. Necrozma (Prism Fusion)
+            else if (lowSpec.includes('necrozma-')) {
+                if (lowSpec.includes('dawn')) data.formParam += ' prism_fusion=dawn';
+                if (lowSpec.includes('dusk')) data.formParam += ' prism_fusion=dusk';
+                data.species = 'necrozma';
+            }
+            // 7. Hoopa (Djinn State)
+            else if (lowSpec.includes('hoopa')) {
+                data.formParam += lowSpec.includes('unbound') ? ' djinn_state=unbound' : ' djinn_state=confined';
+                data.species = 'hoopa';
+            }
+            // 8. Oricorio (Dance Style)
+            else if (lowSpec.includes('oricorio')) {
+                if (lowSpec.includes('pau')) data.formParam += ' dance_style=pau';
+                else if (lowSpec.includes('pom-pom')) data.formParam += ' dance_style=pom-pom';
+                else if (lowSpec.includes('sensu')) data.formParam += ' dance_style=sensu';
+                else data.formParam += ' dance_style=baile';
+                data.species = 'oricorio';
+            }
+            // 9. Calyrex (King Steed)
+            else if (lowSpec.includes('calyrex-')) {
+                if (lowSpec.includes('ice')) data.formParam += ' king_steed=ice';
+                if (lowSpec.includes('shadow')) data.formParam += ' king_steed=shadow';
+                data.species = 'calyrex';
+            }
+            // 10. Urshifu (Wushu Style)
+            else if (lowSpec.includes('urshifu')) {
+                data.formParam += lowSpec.includes('rapid-strike') ? ' wushu_style=rapid_strike' : ' wushu_style=single_strike';
                 data.species = 'urshifu';
             }
 
-            // Otros casos especiales
+            // Corrección de especies con género (-F/-M)
+            const genderedSuffixMons = ['indeedee', 'basculegion', 'oinkologne', 'meowstic'];
+            if (genderedSuffixMons.some(s => lowSpec.startsWith(s))) {
+                data.species = data.species.split('-')[0];
+            }
+
+            // Gastrodon y Tauros Paldea
             if (data.species.toLowerCase().includes('gastrodon')) {
                 data.formParam += data.species.toLowerCase().includes('east') ? ' sea=east' : ' sea=west';
                 data.species = 'gastrodon';
@@ -93,6 +144,7 @@ function parsePokemon(block) {
                 data.species = 'tauros';
             }
 
+            // Regiones (Kazeran incluido)
             const regions = { 'Alola': 'alolan', 'Galar': 'galarian', 'Paldea': 'paldean', 'Hisui': 'hisuian', 'Kazeran': 'kazeran' };
             for (let r in regions) {
                 if (data.species.includes('-' + r)) {
@@ -155,12 +207,7 @@ function renderPokemon(data, slot, container) {
     const evMap = { hp: 'hp_ev', atk: 'attack_ev', def: 'defence_ev', spa: 'special_attack_ev', spd: 'special_defence_ev', spe: 'speed_ev' };
     let evString = '';
     let totalEVs = 0;
-    for (let key in data.evs) { 
-        if (data.evs[key] > 0) {
-            evString += ` ${evMap[key]}=${data.evs[key]}`; 
-            totalEVs += data.evs[key];
-        }
-    }
+    for (let key in data.evs) { if (data.evs[key] > 0) { evString += ` ${evMap[key]}=${data.evs[key]}`; totalEVs += data.evs[key]; } }
 
     const evClass = totalEVs > 510 ? 'ev-error' : 'ev-ok';
     const evText = totalEVs > 510 ? `⚠️ ERROR: ${totalEVs}/510 EVs` : `EVs: ${totalEVs}/510`;
