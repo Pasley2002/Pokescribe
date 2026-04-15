@@ -9,9 +9,15 @@
   </head>
   <body>
     <div class="container">
+      <div class="lang-switcher">
+        <button onclick="toggleLanguage()" id="langBtn">EN</button>
+      </div>
+
       <header>
         <h1>PokeScribe</h1>
-        <p>Convierte sets de Showdown a comandos de Cobblemon ✨</p>
+        <p id="subtitle" data-t="subtitle">
+          Convierte sets de Showdown a comandos de Cobblemon ✨
+        </p>
       </header>
 
       <main>
@@ -21,10 +27,12 @@
         ></textarea>
 
         <div class="button-group">
-          <button id="convertBtn" onclick="convertTeam()">
+          <button id="convertBtn" onclick="convertTeam()" data-t="btnGenerate">
             GENERAR EQUIPO
           </button>
-          <button id="clearBtn" onclick="clearAll()">LIMPIAR</button>
+          <button id="clearBtn" onclick="clearAll()" data-t="btnClear">
+            LIMPIAR
+          </button>
         </div>
 
         <div id="output" class="result-box"></div>
@@ -35,7 +43,9 @@
           Creado por <strong>PasleyStone</strong> para la comunidad de
           <strong>Orizon 🌌</strong>
         </p>
-        <p class="sub-footer">Optimizado para Cobblemon v1.7+</p>
+        <p class="sub-footer" data-t="subFooter">
+          Optimizado para Cobblemon v1.7+
+        </p>
       </footer>
     </div>
 
