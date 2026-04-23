@@ -1,6 +1,6 @@
 /**
- * POKESCRIBE v2.2 - Link Reader Fix
- * Corregido el error de lectura de links usando un proxy más estable.
+ * POKESCRIBE v2.2 - Link Reader & Forms Fix
+ * Soporte bilingüe completo + PokéPaste Integration + Lycanroc Forms.
  */
 
 let currentLang = 'es';
@@ -19,7 +19,7 @@ const translations = {
         loading: "Leyendo link de PokéPaste... 🌐",
         linkError: "Error al leer el link. Asegúrate de que sea público.",
         footer: "Creado por <strong>PasleyStone</strong> para la comunidad de <strong>Orizon 🌌</strong>",
-        subFooter: "Optimizado para Cobblemon v2.1+"
+        subFooter: "Optimizado para Cobblemon v2.2+"
     },
     en: {
         subtitle: "Convert Showdown sets to Cobblemon commands ✨",
@@ -34,7 +34,7 @@ const translations = {
         loading: "Reading PokéPaste link... 🌐",
         linkError: "Error reading the link. Make sure it is public.",
         footer: "Created by <strong>PasleyStone</strong> for the <strong>Orizon</strong> community 🌌",
-        subFooter: "Optimized for Cobblemon v2.1+"
+        subFooter: "Optimized for Cobblemon v2.2+"
     }
 };
 
@@ -64,25 +64,16 @@ async function convertTeam() {
         return;
     }
 
-    // --- DETECCIÓN DE LINK DE POKEPPASTE ---
     if (rawInput.includes('pokepast.es/')) {
         outputDiv.innerHTML = `<div class="poke-card" style="text-align:center;"><p style="color:var(--primary); font-weight:bold;">${t.loading}</p></div>`;
-        
         try {
-            // Limpieza profunda del link
-            let cleanUrl = rawInput.split(' ')[0].split('\n')[0]; // Evitar texto extra
-            cleanUrl = cleanUrl.replace(/\/$/, ""); // Quitar barra final si existe
-            
+            let cleanUrl = rawInput.split(' ')[0].split('\n')[0];
+            cleanUrl = cleanUrl.replace(/\/$/, "");
             if (!cleanUrl.endsWith('/raw')) cleanUrl += '/raw';
-            
-            // Nuevo Proxy: corsproxy.io (Suele ser más estable)
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(cleanUrl)}`;
             const response = await fetch(proxyUrl);
-            
             if (!response.ok) throw new Error("Network response was not ok");
-            
             rawInput = await response.text();
-            
         } catch (error) {
             outputDiv.innerHTML = `<div class="poke-card" style="border-left-color:var(--danger); text-align:center;"><p style="color:var(--text); font-weight:bold;">${t.linkError}</p></div>`;
             return;
@@ -145,7 +136,7 @@ function parsePokemon(block) {
 
             let lowSpec = data.species.toLowerCase();
 
-            // --- LÓGICA DE FORMAS (Se mantiene igual para no romper nada) ---
+            // --- LÓGICA DE FORMAS ---
             if (lowSpec === 'ursaluna-bloodmoon') { data.formParam += ' bloodmoon=true'; data.species = 'ursaluna'; }
             else if (lowSpec.startsWith('arceus-')) { data.formParam += ` multitype=${lowSpec.split('-')[1]}`; data.species = 'arceus'; }
             else if (lowSpec.startsWith('silvally-')) { data.formParam += ` rks_memory=${lowSpec.split('-')[1]}`; data.species = 'silvally'; }
@@ -211,6 +202,13 @@ function parsePokemon(block) {
                 data.formParam += lowSpec.includes('rapid-strike') ? ' wushu_style=rapid_strike' : ' wushu_style=single_strike';
                 data.species = 'urshifu';
             }
+            // --- NUEVA LÓGICA LYCANROC ---
+            else if (lowSpec.includes('lycanroc')) {
+                if (lowSpec.includes('midnight')) data.formParam += ' wolf_form=midnight';
+                else if (lowSpec.includes('dusk')) data.formParam += ' wolf_form=dusk';
+                else data.formParam += ' wolf_form=midday';
+                data.species = 'lycanroc';
+            }
 
             const genderedSuffixMons = ['indeedee', 'basculegion', 'oinkologne', 'meowstic'];
             if (genderedSuffixMons.some(s => lowSpec.startsWith(s))) { data.species = data.species.split('-')[0]; }
@@ -270,14 +268,10 @@ function renderPokemon(data, slot, container) {
 
     const itemName = data.item.toLowerCase();
     let prefix = 'cobblemon:';
-    
     const megaKeywords = ['ite', 'crystal', 'meteorite', ' z', '_z'];
     const isMegaShowdownCandidate = megaKeywords.some(k => itemName.includes(k)) || (itemName.includes('orb') && !['life orb', 'toxic orb', 'flame orb', 'adrenaline orb'].includes(itemName));
     const cobblemonExceptions = ['eviolite', 'life orb', 'toxic orb', 'flame orb', 'adrenaline orb'];
-    
-    if (isMegaShowdownCandidate && !cobblemonExceptions.includes(itemName) && itemName !== '') {
-        prefix = 'mega_showdown:';
-    }
+    if (isMegaShowdownCandidate && !cobblemonExceptions.includes(itemName) && itemName !== '') { prefix = 'mega_showdown:'; }
     
     const finalItem = data.item ? ` held_item=${prefix}${toSnake(data.item)}` : '';
     const finalAbility = toJoin(data.ability);
@@ -297,7 +291,6 @@ function renderPokemon(data, slot, container) {
 
     const evClass = totalEVs > 510 ? 'ev-error' : 'ev-ok';
     const evText = totalEVs > 510 ? t.evError.replace('{evs}', totalEVs) : `EVs: ${totalEVs}/510`;
-
     const nicknameParam = data.nickname ? ` nickname="${data.nickname}"` : '';
 
     const giveCmd = `/pokegive ${finalSpecies} lvl=100${finalItem}${data.gender ? ' gender='+data.gender : ''} ability=${finalAbility}${data.tera ? ' tera_type='+toJoin(data.tera) : ''}${ivString}${evString} nature=${toJoin(data.nature)}${data.formParam}${data.isShiny ? ' shiny=true' : ''}${nicknameParam}`;
@@ -308,7 +301,6 @@ function renderPokemon(data, slot, container) {
     card.innerHTML = `
         <h3 style="color:var(--primary); margin:0">#${slot} - ${data.species.toUpperCase()}${data.isShiny ? ' ✨' : ''}</h3>
         <span class="ev-counter ${evClass}">${evText}</span>
-        
         <div class="command-wrap" style="margin-top:15px">
             <span class="label">${t.labelGive}</span>
             <span class="cmd-text" id="give-${slot}">${giveCmd}</span>
